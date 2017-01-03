@@ -1,0 +1,43 @@
+int photosensor = A4; // initialize pins
+int PIR = A5;
+int Relay = 6;
+int PIRState; //variable for state PIR sensor
+
+void setup() {
+  pinMode(Relay, OUTPUT); 
+  pinMode(PIR, INPUT);
+  Serial.begin(9600);
+}
+
+void loop(){
+ 
+  Serial.print("Analog reading = "); // for debuging show in serial monitor
+  Serial.println(analogRead(photosensor));
+
+  if (analogRead(photosensor) >= 850) { // dark if the value of photosensor is biger than 850
+   
+    Serial.print("Dark");
+   
+    PIRState = digitalRead(PIR); // then get the value of the PIR sensore
+    // if detect move the PIRState is HIGH if not move then is LOW
+    if (PIRState == HIGH) { 
+      
+      digitalWrite(Relay, LOW); // open the relay to give power on leds
+      delay(5000); // delay to stay on the leds
+      
+      Serial.print("Motion PIR"); // debugiing show in serial monitor
+      
+      PIRState == LOW; // set the PIRState low no motion-movement
+    
+    }else { // if have not movement-motion close the relay
+       Serial.print("No motion");
+       digitalWrite(Relay, HIGH);
+    } 
+    
+  }else { // the photosensor take value for day and the relay close
+        // we not check the PIR sensore
+    digitalWrite(Relay, HIGH);
+    Serial.print("Day No light need");
+  }
+  delay(1000);
+}

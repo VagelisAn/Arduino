@@ -1,0 +1,346 @@
+#include <SPI.h>         // needed for Arduino versions later than 0018
+#include <Ethernet.h>
+#include <EthernetUdp.h>         // UDP library from: bjoern@cs.stanford.edu 12/30/2008
+#include <SD.h>
+#include <IRremote.h>
+#include "DHT.h"
+#include <LiquidCrystal.h>
+
+#define DHTPIN A3    // modify to the pin we connected
+#define DHTTYPE DHT21   // DHT 21 (AM2301)
+
+// Enter a MAC address and IP address for your controller below.
+// The IP address will be dependent on your local network:
+byte mac[] = {
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
+};
+
+IPAddress ip(192, 168, 1, 15);
+LiquidCrystal lcd(36, 30, 28, 26, 24, 22); // tell the lc pins
+IRsend irsend;
+DHT dht(DHTPIN, DHTTYPE);
+
+int localPort = 8888;      // local port to listen on
+
+int relaydesk = 6;
+int relayfloor = 4;
+int relayfan = 5;
+int buttonPin = 2;
+int photosensor = A4; // initialize pins
+int PIR = A5;
+int clamp = A7;
+
+int PIRState; //variable for state PIR sensor
+
+// buffers for receiving and sending data
+char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  //buffer to hold incoming packet,
+char  ReplyBuffer[38];//[] = "acknowledged";       // a string to send back
+char  temp[38];
+String replay;
+int counter = 0;
+float h, t;
+// An EthernetUDP instance to let us send and receive packets over UDP
+EthernetUDP Udp;
+
+void setup() {
+
+  pinMode(buttonPin, INPUT);
+  pinMode(relaydesk, OUTPUT);
+  pinMode(relayfloor, OUTPUT);
+  pinMode(relayfan, OUTPUT);
+  pinMode(PIR, INPUT);
+  digitalWrite(relaydesk, HIGH);
+  digitalWrite(relayfloor, HIGH);
+  digitalWrite(relayfan, HIGH);
+  // start the Ethernet and UDP:
+  Ethernet.begin(mac, ip);
+  Udp.begin(localPort);
+  dht.begin();
+  lcd.begin(16, 2);
+  Serial.begin(9600);
+  Serial.println("Start");
+  lcd.setCursor(0, 0);
+  lcd.write("Welcome Master");
+  lcd.setCursor(0, 1);
+  lcd.write("Automation");
+}
+
+void loop() {
+  // if there's data available, read a packet
+
+  // temperature propear to send
+    h = dht.readHumidity();
+    t = dht.readTemperature();
+
+    PIRL();
+    Fan(t,h);
+
+  //desk light na valo sto pin tou relayfloor tis labas tou desk
+  if (digitalRead(buttonPin) == HIGH)
+    onOffLigh(digitalRead(buttonPin));
+
+  int packetSize = Udp.parsePacket();
+  if (packetSize) {
+    Serial.print("Received packet of size ");
+    Serial.println(packetSize);
+    Serial.print("From ");
+    IPAddress remote = Udp.remoteIP();
+    for (int i = 0; i < 4; i++) {
+      Serial.print(remote[i], DEC);
+      if (i < 3) {
+        Serial.print(".");
+      }
+    }
+    Serial.print(", port ");
+    Serial.println(Udp.remotePort());
+
+    Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+    Udp.write("message");
+    Udp.endPacket();
+
+    // temperature propear to send
+    //h = dht.readHumidity();
+   // t = dht.readTemperature();
+
+    String te = "Temperature: " + String(t) + "*C Humidity: " + String(h) + " %";
+    te.toCharArray(temp, 40);
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Temp: " + String(t) + "*C");
+    lcd.setCursor(0, 1);
+    lcd.print("Hum: " + String(h) + " %");
+
+    // read the packet into packetBufffer
+    Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+    Serial.println("Contents:");
+    Serial.println(packetBuffer);
+
+    if (strcmp(packetBuffer, "Ledon") == 0) {
+      digitalWrite(relaydesk, LOW);
+      replay = "leds desk on";
+    } else if (strcmp(packetBuffer, "Ledoff") == 0) {
+      digitalWrite(relaydesk, HIGH);
+      replay = "leds desk off";
+    }
+    if (strcmp(packetBuffer, "LedonFl") == 0) {
+      digitalWrite(relayfloor, LOW);
+      replay = "leds floor on";
+    } else if (strcmp(packetBuffer, "LedoffFl") == 0) {
+      digitalWrite(relayfloor, HIGH);
+      replay = "leds floor off";
+    }
+    if (strcmp(packetBuffer, "ON") == 0) {
+      irsend.sendNEC(0x00F7C03F, 32);
+      delay(2000);
+      replay = "leds on";
+    } else if (strcmp(packetBuffer, "OFF") == 0) {
+      irsend.sendNEC(0x00F740BF, 32);
+      delay(2000);
+      replay = "leds off";
+    }
+    if (strcmp(packetBuffer, "BrightnessUp") == 0) {
+      irsend.sendNEC(0x00F700FF, 32);
+      delay(2000);
+      replay = "BrightnessUp";
+    }
+    if (strcmp(packetBuffer, "BrightnessDo") == 0) {
+      irsend.sendNEC(0x00F7807F, 32);
+      delay(2000);
+      replay = "BrightnessDo";
+    }
+    if (strcmp(packetBuffer, "Flash") == 0) {
+      irsend.sendNEC(0x00F7F00F, 32);
+      delay(2000);
+      replay = "Flash";
+    }
+    if (strcmp(packetBuffer, "Strobe") == 0) {
+      irsend.sendNEC(0x00F7D02F, 32);
+      delay(2000);
+      replay = "Strobe";
+    }
+    if (strcmp(packetBuffer, "Fade") == 0) {
+      irsend.sendNEC(0x00F7F00F, 32);
+      delay(2000);
+      replay = "Fade";
+    }
+    if (strcmp(packetBuffer, "Smooth") == 0) {
+      irsend.sendNEC(0x00F7E817, 32);
+      delay(2000);
+      replay = "Smooth";
+    }
+    if (strcmp(packetBuffer, "Red") == 0) {
+      irsend.sendNEC(0x00F720DF, 32);
+      delay(2000);
+      replay = "Red";
+    }
+    if (strcmp(packetBuffer, "Green") == 0) {
+      irsend.sendNEC(0x00F7A05F, 32);
+      delay(2000);
+      replay = "Green";
+    }
+    if (strcmp(packetBuffer, "Blue") == 0) {
+      irsend.sendNEC(0x00F7B04F, 32);
+      delay(2000);
+      replay = "Blue";
+    }
+    if (strcmp(packetBuffer, "Aqua") == 0) {
+      irsend.sendNEC(0x00F78877, 32);
+      delay(2000);
+      replay = "Aqua";
+    }
+    if (strcmp(packetBuffer, "Aquamarine") == 0) {
+      irsend.sendNEC(0x00F710EF, 32);
+      delay(2000);
+      replay = "Aquamarine";
+    }
+    if (strcmp(packetBuffer, "Orange") == 0) {
+      irsend.sendNEC(0x00F7C03F, 32);
+      delay(2000);
+      replay = "Orange";
+    }
+    if (strcmp(packetBuffer, "Yellow") == 0) {
+      irsend.sendNEC(0x00F728D7, 32);
+      delay(2000);
+      replay = "Yellow";
+    }
+    if (strcmp(packetBuffer, "LightGreen") == 0) {
+      irsend.sendNEC(0x00F7906F, 32);
+      delay(2000);
+      replay = "LightGreen";
+    }
+    if (strcmp(packetBuffer, "Purple") == 0) {
+      irsend.sendNEC(0x00F76897, 32);
+      delay(2000);
+      replay = "Purple";
+    }
+    if (strcmp(packetBuffer, "LightBlue") == 0) {
+      irsend.sendNEC(0x00F7609F, 32);
+      delay(2000);
+      replay = "LightBlue";
+    }
+    if (strcmp(packetBuffer, "DarkBlue") == 0) {
+      irsend.sendNEC(0x00F7A857, 32);
+      delay(2000);
+      replay = "DarkBlue";
+    }
+    if (strcmp(packetBuffer, "CornflowerBlue") == 0) {
+      irsend.sendNEC(0x00F750AF, 32);
+      delay(2000);
+      replay = "CornflowerBlue";
+    }
+    if (strcmp(packetBuffer, "DarkSlateBlue") == 0) {
+      irsend.sendNEC(0x00F7708F, 32);
+      delay(2000);
+      replay = "DarkSlateBlue";
+    }
+    if (strcmp(packetBuffer, "White") == 0) {
+      irsend.sendNEC(0x00F7E01F, 32);
+      delay(2000);
+      replay = "White";
+    }
+    
+    if (strcmp(packetBuffer, "Day") == 0) {
+      Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+      String(analogRead(photosensor)).toCharArray(ReplyBuffer, 38);
+      Udp.write(ReplyBuffer);
+      Udp.endPacket();
+      Serial.println(analogRead(photosensor));
+      delay(2000);
+    }
+    
+    if (strcmp(packetBuffer, "Temp") == 0) {
+      Serial.println("Temperature send");
+      Serial.println(temp);
+      Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+      Udp.write(temp);
+      Udp.endPacket();
+    } else {
+      replay.toCharArray(ReplyBuffer, 38);
+      // send a reply to the IP address and port that sent us the packet we received
+      Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+      Udp.write(ReplyBuffer);
+      Udp.endPacket();
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Your command");
+      lcd.setCursor(0, 1);
+      lcd.print(ReplyBuffer);
+    }
+    memset(ReplyBuffer, 0, sizeof(ReplyBuffer));
+    memset(packetBuffer, 0, sizeof(packetBuffer));
+
+  }
+
+  delay(10);
+
+}
+
+void Fan(float t, float h){
+
+  if (t > 30) {
+      digitalWrite(relayfan, LOW);
+      lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Temp: " + String(t) + "*C");
+    lcd.setCursor(0, 1);
+    lcd.print("Fan Start too Hot");
+    } else {
+      digitalWrite(relayfan, HIGH);
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Temp: " + String(t) + "*C");
+    lcd.setCursor(0, 1);
+    lcd.print("Hum: " + String(h) + " %");
+    }
+    
+    
+  
+  }
+
+void PIRL() {
+
+  Serial.print("Analog reading = "); // for debuging show in serial monitor
+  Serial.println(analogRead(photosensor));
+
+  if (analogRead(photosensor) >= 850) { // dark if the value of photosensor is biger than 850
+
+    Serial.print("Dark");
+
+    PIRState = digitalRead(PIR); // then get the value of the PIR sensore
+    // if detect move the PIRState is HIGH if not move then is LOW
+    if (PIRState == HIGH) {
+
+      digitalWrite(relayfloor, LOW); // open the relayfloor to give power on leds
+      delay(5000); // delay to stay on the leds
+
+      Serial.print("Motion PIR"); // debugiing show in serial monitor
+
+      PIRState == LOW; // set the PIRState low no motion-movement
+
+    } else { // if have not movement-motion close the
+      Serial.print("No motion");
+      digitalWrite(relayfloor, HIGH);
+    }
+
+  } else { // the photosensor take value for day and the relay close
+    // we not check the PIR sensore
+    digitalWrite(relayfloor, HIGH);
+    Serial.print("Day No light need");
+  }
+  delay(1000);
+
+}
+
+void onOffLigh(int buttonState) {
+  if (buttonState == HIGH) {
+    counter++;
+  }
+  if (counter % 2 == 0) {
+    // turn LED on:
+    digitalWrite(relaydesk, LOW);
+  } else {
+    // turn LED off:
+    digitalWrite(relaydesk, HIGH);
+  }
+}

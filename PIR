@@ -1,0 +1,30 @@
+
+    int redLed[2] = { 2, 3};             //  pin for the LED
+    int inputPin = 8;               // pin (for PIR sensor)
+    int pirState = LOW;             // no motion detected
+    int val = 0,i;                    // variable for reading the pin status and i is counter
+     
+    void setup() {
+     for (i = 0; i < 2; i++)
+      pinMode(redLed[i], OUTPUT);     // declare LEDs as output
+      pinMode(inputPin, INPUT);     // declare sensor as input
+     
+      Serial.begin(9600);         /// for debug
+    }
+     
+    void loop(){
+      val = digitalRead(inputPin);  // read input value from PIR
+      if (val == HIGH) {            // check if is HIGH means movement
+       for (i = 0; i < 2; i++)
+      digitalWrite(redLed[i], HIGH);  // turn LEDs ON
+        if (pirState == LOW) {    
+          pirState = HIGH;   // change the state
+        }
+      } else {
+        for (i = 0; i < 2; i++)
+      digitalWrite(redLed[i], LOW); // turn LEDs OFF
+        if (pirState == HIGH){
+          pirState = LOW;  // change the state
+        }
+      }
+    }

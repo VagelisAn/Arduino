@@ -1,0 +1,22 @@
+int photocell = 0;     //annalog A0 connect sensor
+int photocellReading;     
+int LED = 4;            // pin 4 connect led with 220 resstore
+int LEDbrightness;         
+void setup() {
+   pinMode(LED, OUTPUT);
+  Serial.begin(9600);   
+}
+ 
+void loop() {
+  photocellReading = analogRead(photocell);  ///read from photocell
+ 
+  Serial.print("Value = ");
+  Serial.println(photocellReading);     
+ 
+  if(photocellReading > 350){ // you adjust the value for your case 
+  digitalWrite(LED, HIGH);
+  }else{
+  digitalWrite(LED, LOW);  
+    }
+  delay(100);
+}

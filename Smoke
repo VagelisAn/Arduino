@@ -1,26 +1,27 @@
 
-int redLed = 12;
-int greenLed = 11;
-int buzzer = 10;
-int smokeA0 = A1;
-// Your threshold value
+int redLed = 7; // in video use 2 red
+int greenLed = 6;  // in video use 8 green h=here is simplier
+int buzzer = 4; // the positive is the longer feet of buzzer
+int smoke = A5;
+
 int sensorThres = 200; //200 smoke when is greaater of 200
 
 void setup() {
   pinMode(redLed, OUTPUT);
   pinMode(greenLed, OUTPUT);
   pinMode(buzzer, OUTPUT);
-  pinMode(smokeA0, INPUT);
+  pinMode(smoke, INPUT);
 }
 
 void loop() {
-  int analogSensor = analogRead(smokeA0);
+  int valueSensor = analogRead(smoke);
   
-  if (analogSensor > sensorThres)
+  if (valueSensor > sensorThres)
   {
     digitalWrite(redLed, HIGH); 
     digitalWrite(greenLed, LOW);
-    tone(buzzer, 1000, 200);
+    tone(buzzer, 1200, 250);
+       
   }
   else
   {

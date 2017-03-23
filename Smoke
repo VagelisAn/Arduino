@@ -1,0 +1,32 @@
+
+int redLed = 12;
+int greenLed = 11;
+int buzzer = 10;
+int smokeA0 = A1;
+// Your threshold value
+int sensorThres = 200; //200 smoke when is greaater of 200
+
+void setup() {
+  pinMode(redLed, OUTPUT);
+  pinMode(greenLed, OUTPUT);
+  pinMode(buzzer, OUTPUT);
+  pinMode(smokeA0, INPUT);
+}
+
+void loop() {
+  int analogSensor = analogRead(smokeA0);
+  
+  if (analogSensor > sensorThres)
+  {
+    digitalWrite(redLed, HIGH); 
+    digitalWrite(greenLed, LOW);
+    tone(buzzer, 1000, 200);
+  }
+  else
+  {
+    digitalWrite(redLed, LOW);
+    digitalWrite(greenLed, HIGH);
+    noTone(buzzer);
+  }
+  delay(100);
+}

@@ -15,7 +15,7 @@ byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
 };
 
-IPAddress ip(192, 168, 1, 15);
+IPAddress ip(xxx, xxx, xxx, xxx);
 LiquidCrystal lcd(36, 30, 28, 26, 24, 22); // tell the lc pins
 IRsend irsend;
 DHT dht(DHTPIN, DHTTYPE);
